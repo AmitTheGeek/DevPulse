@@ -1,19 +1,8 @@
-package com.devpulse.core.database.entity
+package com.devpulse.core.database.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
-@Entity(
-    tableName = "repositories",
-    indices = [
-        Index(value = ["ownerUsername"]),
-        Index(value = ["ownerUsername", "name"], unique = true),
-        Index(value = ["fullName"], unique = true),
-    ],
-)
-data class RepositoryEntity(
-    @PrimaryKey
+data class RepositoryWithSaved(
     val id: Long,
     val ownerId: Long,
     val ownerUsername: String,
@@ -29,4 +18,7 @@ data class RepositoryEntity(
     val isArchived: Boolean,
     val isPrivate: Boolean,
     val updatedAtEpochMillis: Long?,
+    @ColumnInfo(name = "isSaved")
+    val isSaved: Boolean,
 )
+
