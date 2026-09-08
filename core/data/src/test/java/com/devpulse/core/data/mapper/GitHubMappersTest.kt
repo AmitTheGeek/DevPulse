@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class GitHubMappersTest {
     @Test
@@ -92,14 +93,14 @@ class GitHubMappersTest {
         assertFalse(repository.isArchived)
         assertFalse(repository.isPrivate)
         assertTrue(repository.isSaved)
-        assertEquals("2026-09-08T09:30:00Z", repository.updatedAt)
+        assertEquals(Instant.parse("2026-09-08T09:30:00Z"), repository.updatedAt)
     }
 
     @Test
     fun repositoryDtoMapsToRepositoryEntity() {
         val dto = sampleRepositoryDto()
 
-        val entity = dto.toRepositoryEntity(isSaved = true)
+        val entity = dto.toRepositoryEntity()
 
         assertEquals(1296269L, entity.id)
         assertEquals(42L, entity.ownerId)
@@ -115,8 +116,7 @@ class GitHubMappersTest {
         assertFalse(entity.isFork)
         assertFalse(entity.isArchived)
         assertFalse(entity.isPrivate)
-        assertTrue(entity.isSaved)
-        assertEquals("2026-09-08T09:30:00Z", entity.updatedAt)
+        assertEquals(1_788_859_800_000L, entity.updatedAtEpochMillis)
     }
 
     @Test
@@ -136,11 +136,10 @@ class GitHubMappersTest {
             isFork = false,
             isArchived = false,
             isPrivate = false,
-            isSaved = true,
-            updatedAt = "2026-09-08T09:30:00Z",
+            updatedAtEpochMillis = 1_788_859_800_000L,
         )
 
-        val repository = entity.toRepository()
+        val repository = entity.toRepository(isSaved = true)
 
         assertEquals(entity.id, repository.id)
         assertEquals(entity.ownerUsername, repository.ownerUsername)
@@ -155,8 +154,8 @@ class GitHubMappersTest {
         assertEquals(entity.isFork, repository.isFork)
         assertEquals(entity.isArchived, repository.isArchived)
         assertEquals(entity.isPrivate, repository.isPrivate)
-        assertEquals(entity.isSaved, repository.isSaved)
-        assertEquals(entity.updatedAt, repository.updatedAt)
+        assertTrue(repository.isSaved)
+        assertEquals(Instant.parse("2026-09-08T09:30:00Z"), repository.updatedAt)
     }
 
     private fun sampleUserDto(): GitHubUserDto =
