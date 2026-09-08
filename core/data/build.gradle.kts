@@ -1,19 +1,14 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
 }
 
 android {
-    namespace = "com.devpulse.feature.saved"
+    namespace = "com.devpulse.core.data"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
-    }
-
-    buildFeatures {
-        compose = true
     }
 
     compileOptions {
@@ -29,8 +24,12 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":core:common"))
-    implementation(project(":core:data"))
-    implementation(project(":core:model"))
-    implementation(project(":core:designsystem"))
+    api(project(":core:model"))
+
+    implementation(project(":core:network"))
+    implementation(project(":core:database"))
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit)
 }
+
