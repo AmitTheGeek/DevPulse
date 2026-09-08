@@ -1,5 +1,7 @@
 package com.devpulse.core.model
 
+import java.time.Instant
+
 data class Repository(
     val id: Long,
     val ownerUsername: String,
@@ -15,6 +17,5 @@ data class Repository(
     val isArchived: Boolean,
     val isPrivate: Boolean,
     val isSaved: Boolean,
-    val updatedAt: String?,
+    val updatedAt: Instant?,
 )
-

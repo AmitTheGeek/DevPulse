@@ -2,10 +2,12 @@ package com.devpulse.core.data.mapper
 
 import com.devpulse.core.database.entity.DeveloperEntity
 import com.devpulse.core.database.entity.RepositoryEntity
+import com.devpulse.core.database.model.RepositoryWithSaved
 import com.devpulse.core.model.Developer
 import com.devpulse.core.model.Repository
 import com.devpulse.core.network.github.dto.GitHubRepositoryDto
 import com.devpulse.core.network.github.dto.GitHubUserDto
+import java.time.Instant
 
 internal fun GitHubUserDto.toDeveloper(): Developer =
     Developer(
@@ -62,10 +64,10 @@ internal fun GitHubRepositoryDto.toRepository(isSaved: Boolean = false): Reposit
         isArchived = isArchived,
         isPrivate = isPrivate,
         isSaved = isSaved,
-        updatedAt = updatedAt,
+        updatedAt = updatedAt.toInstantOrNull(),
     )
 
-internal fun GitHubRepositoryDto.toRepositoryEntity(isSaved: Boolean = false): RepositoryEntity =
+internal fun GitHubRepositoryDto.toRepositoryEntity(): RepositoryEntity =
     RepositoryEntity(
         id = id,
         ownerId = owner.id,
@@ -81,11 +83,10 @@ internal fun GitHubRepositoryDto.toRepositoryEntity(isSaved: Boolean = false): R
         isFork = isFork,
         isArchived = isArchived,
         isPrivate = isPrivate,
-        isSaved = isSaved,
-        updatedAt = updatedAt,
+        updatedAtEpochMillis = updatedAt.toInstantOrNull()?.toEpochMilli(),
     )
 
-internal fun RepositoryEntity.toRepository(): Repository =
+internal fun RepositoryEntity.toRepository(isSaved: Boolean = false): Repository =
     Repository(
         id = id,
         ownerUsername = ownerUsername,
@@ -101,6 +102,28 @@ internal fun RepositoryEntity.toRepository(): Repository =
         isArchived = isArchived,
         isPrivate = isPrivate,
         isSaved = isSaved,
-        updatedAt = updatedAt,
+        updatedAt = updatedAtEpochMillis?.let(Instant::ofEpochMilli),
     )
+
+internal fun RepositoryWithSaved.toRepository(): Repository =
+    Repository(
+        id = id,
+        ownerUsername = ownerUsername,
+        name = name,
+        fullName = fullName,
+        description = description,
+        url = url,
+        primaryLanguage = primaryLanguage,
+        starCount = starCount,
+        forkCount = forkCount,
+        openIssueCount = openIssueCount,
+        isFork = isFork,
+        isArchived = isArchived,
+        isPrivate = isPrivate,
+        isSaved = isSaved,
+        updatedAt = updatedAtEpochMillis?.let(Instant::ofEpochMilli),
+    )
+
+private fun String?.toInstantOrNull(): Instant? =
+    this?.let(Instant::parse)
 
