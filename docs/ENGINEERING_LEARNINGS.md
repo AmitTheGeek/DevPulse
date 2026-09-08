@@ -4,7 +4,7 @@ This file records project-shaping decisions that should carry forward into DevPu
 
 ## 2026-09-08: Keep Model Contracts Independent
 
-` :core:model` should start dependency-free. Model contracts are easiest to share, test, and reason about when they do not inherit utility or platform assumptions from lower-level modules.
+`:core:model` should start dependency-free. Model contracts are easiest to share, test, and reason about when they do not inherit utility or platform assumptions from lower-level modules.
 
 Add a dependency from `:core:model` only when a concrete model type needs a shared primitive that clearly belongs elsewhere.
 
@@ -20,3 +20,6 @@ Commits should tell the story of the project without manufacturing false history
 
 Libraries such as Retrofit, Room, Hilt, and navigation should enter the project when a product slice requires them. The initial baseline should stay buildable and modular without committing to implementation choices too early.
 
+## 2026-09-08: Separate DTOs, Entities, And Domain Models Early
+
+Remote DTOs should mirror the API contract, Room entities should mirror local storage, and domain models should mirror app needs. Keeping these shapes separate adds a little mapping code up front, but it prevents feature modules from coupling to network or database implementation details.
