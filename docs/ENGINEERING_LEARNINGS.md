@@ -23,3 +23,19 @@ Libraries such as Retrofit, Room, Hilt, and navigation should enter the project 
 ## 2026-09-08: Separate DTOs, Entities, And Domain Models Early
 
 Remote DTOs should mirror the API contract, Room entities should mirror local storage, and domain models should mirror app needs. Keeping these shapes separate adds a little mapping code up front, but it prevents feature modules from coupling to network or database implementation details.
+
+## 2026-09-08: Make Local Storage The Observable Source
+
+Offline-first repositories should expose Room-backed `Flow`s for reads and keep refresh APIs as write operations that return `DataResult<Unit>`. This prevents network responses from becoming a competing source of UI truth and lets stale-but-valid cached data remain visible when refreshes fail.
+
+## 2026-09-08: Model Data Ownership Explicitly
+
+Remote-owned repository fields and locally owned saved state should not share the same persistence field. A separate saved-repository table makes user intent durable across remote refreshes and keeps list replacement logic honest: remove missing unsaved remote rows, preserve saved rows.
+
+## 2026-09-08: Keep Freshness Policy Testable
+
+Cache freshness belongs in the data layer, not in ViewModels. Store refresh metadata in Room, inject a small clock abstraction, and treat TTL values as application policy. This keeps refresh-if-stale behavior deterministic in tests and easy to bypass for future manual refresh actions.
+
+## 2026-09-08: Only Delete Missing Rows From Complete Snapshots
+
+Replacement sync is safe only when the local layer knows it has a complete remote snapshot. For paginated APIs, a full page should not trigger stale-row deletion unless the pagination layer has confirmed there is no next page.
