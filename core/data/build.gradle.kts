@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -33,12 +35,19 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.hilt.android)
     implementation(libs.retrofit)
     implementation(libs.room.ktx)
+
+    kapt(libs.hilt.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.room.testing)
+}
+
+kapt {
+    correctErrorTypes = true
 }
