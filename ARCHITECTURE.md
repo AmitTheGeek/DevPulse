@@ -6,11 +6,14 @@ DevPulse is a modular Android application with `:app` as the composition root. F
 
 ```text
 :app
+  -> :core:data
+  -> :core:database
   -> :feature:search
   -> :feature:developer
   -> :feature:repository
   -> :feature:saved
   -> :core:designsystem
+  -> :core:network
 
 :feature:*
   -> :core:common
@@ -38,6 +41,7 @@ DevPulse is a modular Android application with `:app` as the composition root. F
 ## Dependency Rules
 
 - `:app` owns app assembly and can depend on feature modules.
+- `:app` is the composition root and may depend directly on core infrastructure modules for dependency graph assembly.
 - Feature modules must not depend directly on other feature modules.
 - Feature modules must not depend directly on `:core:network` or `:core:database`.
 - Feature modules may depend on `:core:data` for application-level repository contracts.
@@ -47,6 +51,32 @@ DevPulse is a modular Android application with `:app` as the composition root. F
 - `:core:network` owns remote API contracts and DTOs only.
 - `:core:database` owns local persistence entities only.
 - `:core:data` owns mapping, application-level error contracts, and repository interfaces.
+
+## Composition Root And DI
+
+Hilt is installed from `:app`, with `DevPulseApplication` as the generated application root and `MainActivity` as the Android entry point for the Compose tree.
+
+Dependency bindings stay close to the module that owns the implementation:
+
+- `:core:network` provides a singleton `OkHttpClient` and singleton `GitHubApi`.
+- `:core:database` provides a singleton `DevPulseDatabase`; DAOs are provided from that database and share its lifetime.
+- `:core:data` binds singleton repository implementations and provides the singleton app clock/cache policy.
+
+Singleton scope is used for the network client, GitHub API, Room database, repositories, clock, and cache policy because each is process-wide infrastructure. DAOs are lightweight accessors backed by the singleton database.
+
+Feature modules do not know how these dependencies are built. They depend on repository contracts from `:core:data` and receive implementations through constructor injection.
+
+## Navigation Ownership
+
+`:app` owns top-level navigation. Feature modules expose route-level composables and destination constants, but they do not navigate directly to each other and do not depend on sibling feature modules.
+
+The current graph intentionally contains only:
+
+```text
+search -> developer/{username}
+```
+
+Navigation passes the developer username identifier only. Domain models are loaded by the destination from repositories so navigation arguments remain small, stable, serializable, and independent of cache shape.
 
 ## Model Boundaries
 
@@ -101,7 +131,7 @@ After a complete repository-list snapshot, unsaved repositories for that owner t
 
 Synchronization metadata lives in `sync_metadata` as a simple key-value table of sync key to last refreshed epoch milliseconds. `CacheFreshnessPolicy` uses an injectable `DevPulseClock` and a five-minute TTL. That TTL is an application cache policy, not a GitHub freshness guarantee.
 
-Refresh methods currently perform manual refreshes directly. The metadata and clock are in place so a later use case can decide whether to refresh-if-stale or bypass freshness checks for explicit user actions without putting time logic in ViewModels.
+Refresh methods accept `RefreshPolicy`. `RefreshPolicy.IfStale` checks synchronization metadata before hitting GitHub, while `RefreshPolicy.Force` bypasses freshness checks for explicit user actions. ViewModels choose the user intent, but the time and staleness calculation stays in `:core:data`.
 
 ## Date And Time
 
@@ -120,9 +150,26 @@ Remote `updated_at` values remain strings in GitHub DTOs because that is the wir
 
 Rate-limited requests are not retried aggressively. Existing cached data remains available through Room observations after any refresh failure.
 
-## Current UI Shell
+## Presentation State
 
-`:core:designsystem` provides `DevPulseTheme`, a small Material 3 theme wrapper. `:app` uses that theme to display a single placeholder screen so the project has a buildable Compose entry point without product behavior.
+Developer presentation follows unidirectional data flow:
+
+- The route receives `username`.
+- `DeveloperViewModel` observes Room-backed repository flows.
+- The ViewModel exposes one immutable `StateFlow<DeveloperUiState>`.
+- Compose renders from that state and calls ordinary ViewModel functions such as `onRefresh()` and `onRetry()`.
+
+`DeveloperUiState` is a data class rather than one mutually exclusive sealed state because valid screen states can overlap. Cached content can be visible while a refresh is in progress, and cached content can remain visible with a non-destructive refresh error.
+
+Feature-level UI errors map from `DevPulseError` without exposing Retrofit exceptions, SQL exceptions, DTOs, or Room entities to Compose.
+
+## Current Vertical Slice
+
+`:core:designsystem` provides `DevPulseTheme`, a small Material 3 theme wrapper. `:app` uses that theme and owns navigation between the Search and Developer feature routes.
+
+Search collects and validates a GitHub username locally, then asks the app navigation layer to open the Developer destination. Search does not call GitHub just to navigate.
+
+Developer observes cached Room data immediately, triggers an automatic `RefreshPolicy.IfStale` refresh through `DeveloperRepository`, and uses forced refresh for manual retry/refresh actions. Repository rows render from the cached list; repository detail and saved screens remain out of scope.
 
 ## Planned Direction
 

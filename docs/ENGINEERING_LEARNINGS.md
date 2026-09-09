@@ -39,3 +39,19 @@ Cache freshness belongs in the data layer, not in ViewModels. Store refresh meta
 ## 2026-09-08: Only Delete Missing Rows From Complete Snapshots
 
 Replacement sync is safe only when the local layer knows it has a complete remote snapshot. For paginated APIs, a full page should not trigger stale-row deletion unless the pagination layer has confirmed there is no next page.
+
+## 2026-09-09: Keep DI Bindings Near Ownership
+
+Hilt modules should live near the code they construct: network bindings in `:core:network`, database bindings in `:core:database`, data/repository bindings in `:core:data`, and only app entry points in `:app`. This keeps the graph understandable as modules grow.
+
+## 2026-09-09: Navigate With Identifiers
+
+Navigation should pass stable identifiers, not domain objects or persistence shapes. The destination can observe its own data from repositories, which keeps navigation small and prevents stale object snapshots from bypassing the source of truth.
+
+## 2026-09-09: Model Cached Content And Refresh Status Together
+
+Screen state should allow cached content, loading, and refresh errors to coexist. A single immutable UI state data class can represent content plus a non-destructive refresh failure more naturally than a fully exclusive sealed state hierarchy.
+
+## 2026-09-09: Match Library Versions To The Project Toolchain
+
+Choosing the latest library blindly can pull transitive artifacts that require a newer compile SDK or Android Gradle Plugin. Prefer versions that fit the project toolchain unless the task explicitly upgrades that toolchain; document the compatibility reason.
