@@ -44,8 +44,8 @@ class OfflineFirstRepositoryTest {
     private lateinit var database: DevPulseDatabase
     private lateinit var gitHubApi: FakeGitHubApi
     private lateinit var clock: FixedClock
-    private lateinit var developerRepository: DefaultDeveloperRepository
-    private lateinit var repositoryCatalog: DefaultRepositoryCatalog
+    private lateinit var developerRepository: DeveloperRepository
+    private lateinit var repositoryCatalog: RepositoryCatalog
 
     @Before
     fun setUp() {
@@ -57,15 +57,21 @@ class OfflineFirstRepositoryTest {
             .build()
         gitHubApi = FakeGitHubApi()
         clock = FixedClock(nowEpochMillis = 10_000L)
+        val cacheFreshnessChecker = CacheFreshnessChecker(
+            syncMetadataDao = database.syncMetadataDao(),
+            clock = clock,
+        )
         developerRepository = DefaultDeveloperRepository(
             database = database,
             gitHubApi = gitHubApi,
             clock = clock,
+            cacheFreshnessChecker = cacheFreshnessChecker,
         )
         repositoryCatalog = DefaultRepositoryCatalog(
             database = database,
             gitHubApi = gitHubApi,
             clock = clock,
+            cacheFreshnessChecker = cacheFreshnessChecker,
         )
     }
 

@@ -1,8 +1,9 @@
 package com.devpulse.core.data.cache
 
 import com.devpulse.core.database.dao.SyncMetadataDao
+import javax.inject.Inject
 
-internal class CacheFreshnessChecker(
+class CacheFreshnessChecker @Inject constructor(
     private val syncMetadataDao: SyncMetadataDao,
     private val clock: DevPulseClock,
     private val cacheFreshnessPolicy: CacheFreshnessPolicy = CacheFreshnessPolicy(),
@@ -15,4 +16,3 @@ internal class CacheFreshnessChecker(
         )
     }
 }
-

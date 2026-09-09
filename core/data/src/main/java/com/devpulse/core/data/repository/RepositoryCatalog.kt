@@ -9,9 +9,16 @@ interface RepositoryCatalog {
 
     fun observeRepository(owner: String, repositoryName: String): Flow<Repository?>
 
-    suspend fun refreshRepositories(username: String): DataResult<Unit>
+    suspend fun refreshRepositories(
+        username: String,
+        refreshPolicy: RefreshPolicy = RefreshPolicy.Force,
+    ): DataResult<Unit>
 
-    suspend fun refreshRepository(owner: String, repositoryName: String): DataResult<Unit>
+    suspend fun refreshRepository(
+        owner: String,
+        repositoryName: String,
+        refreshPolicy: RefreshPolicy = RefreshPolicy.Force,
+    ): DataResult<Unit>
 
     suspend fun setRepositorySaved(id: Long, saved: Boolean): DataResult<Unit>
 

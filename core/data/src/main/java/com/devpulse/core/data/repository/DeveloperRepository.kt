@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 interface DeveloperRepository {
     fun observeDeveloper(username: String): Flow<Developer?>
 
-    suspend fun refreshDeveloper(username: String): DataResult<Unit>
+    suspend fun refreshDeveloper(
+        username: String,
+        refreshPolicy: RefreshPolicy = RefreshPolicy.Force,
+    ): DataResult<Unit>
 }
-
