@@ -1,39 +1,115 @@
 # DevPulse
 
-DevPulse is a production-quality Android project for exploring GitHub developer and repository activity with Kotlin, Jetpack Compose, Material 3, and an offline-first modular architecture.
+[![Android CI](https://github.com/AmitTheGeek/DevPulse/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/AmitTheGeek/DevPulse/actions/workflows/android-ci.yml)
 
-## Current Status
+DevPulse is a Kotlin Android app for exploring GitHub developers and repositories. It exists as a focused production-style sample: a real Compose UI backed by a modular, offline-first data layer rather than a static demo screen.
 
-This repository currently contains the initial project structure, the first Room-backed offline-first data layer, Hilt dependency injection, and the primary MVP navigation: Explore, Developer Dashboard, Repository Detail, and Saved Repositories.
+## Screenshots
 
-Authentication, full GitHub pagination, Paging 3, WorkManager, background sync, README fetching, commit history, contributors, and releases are intentionally not implemented yet.
+<p align="center">
+  <img src="docs/images/search.png" width="180" alt="DevPulse search screen" />
+  <img src="docs/images/developer.png" width="180" alt="Developer dashboard" />
+  <img src="docs/images/repository-detail.png" width="180" alt="Repository detail" />
+  <img src="docs/images/saved.png" width="180" alt="Saved repositories" />
+</p>
 
-## Planned Architecture
+## What DevPulse Demonstrates
 
-DevPulse is organized as a modular Android app with `:app` as the composition root. Feature modules remain independent from one another and consume shared foundations from `:core:*` modules. `:core:data` is the application data boundary that coordinates GitHub network refreshes with Room persistence while keeping DTOs, entities, and domain models separate.
+- Kotlin, Jetpack Compose, and Material 3
+- Modular Android architecture with isolated feature modules
+- Room as the observable source of truth
+- Offline-first reads with network-to-Room synchronization
+- Separate remote-owned data and locally owned saved state
+- Hilt dependency injection
+- Screen-level `StateFlow` and unidirectional data flow
+- Cache freshness policies with forced manual refresh
+- Identifier-based navigation
+- Explicit application error modelling
+- Mapper, repository, ViewModel, and Compose/Robolectric tests
+- Android lint, Detekt, and GitHub Actions CI
 
-Reads come from Room-backed `Flow`s. Refresh operations update Room and return `DataResult<Unit>`, allowing cached data to remain observable even when a network request fails. `:app` owns top-level navigation and dependency graph assembly; feature modules expose routes and stay independent from each other.
+## Features
 
-Saved repository state is locally owned. Owner-list synchronization preserves saved cached repositories even when they disappear from a later list response, and unsaving allows known-missing cached rows to be cleaned up.
+- GitHub developer search
+- Developer Dashboard with profile stats and repository list
+- Repository Detail with stars, forks, issues, language, update date, and GitHub link
+- Save, unsave, and Saved repositories
+- Cached offline reading for loaded developer and repository data
+- Manual refresh
+- Loading, error, empty, and cached-with-refresh-failure states
 
-## Module Overview
+## Architecture
 
-- `:app` - Android application module, Hilt root, and top-level Compose navigation owner.
-- `:core:common` - Shared utilities and common foundations.
-- `:core:model` - Shared app/domain model contracts.
-- `:core:network` - GitHub REST API interface, remote DTOs, unauthenticated network configuration, and network DI.
-- `:core:database` - Room database, DAOs, entities, saved-state persistence, synchronization metadata, and database DI.
-- `:core:data` - Repository contracts and implementations, mapping functions, data errors, cache freshness policy, synchronization transactions, and repository DI.
-- `:core:designsystem` - Shared Compose Material 3 theme and design primitives.
-- `:core:testing` - Shared testing utilities and test dependencies.
-- `:feature:search` - Search route and username submission UI.
-- `:feature:developer` - Developer Dashboard route, ViewModel, screen state, and cached repository list UI.
-- `:feature:repository` - Repository Detail route, ViewModel, state, save/unsave actions, and GitHub link action.
-- `:feature:saved` - Saved repositories route, ViewModel, local saved list UI, unsave action, and repository navigation.
+```mermaid
+flowchart TD
+    Compose["Compose screens"] --> ViewModel["ViewModels"]
+    ViewModel --> Contracts["Repository contracts"]
+    Contracts --> Data[":core:data"]
+    Data --> Room[":core:database / Room"]
+    Data --> GitHub[":core:network / GitHub API"]
+
+    subgraph ReadPath["Read path"]
+        ReadRoom["Room"] --> Flow["Flow"] --> ReadUi["UI"]
+    end
+
+    subgraph RefreshPath["Refresh path"]
+        Api["GitHub"] --> Mapper["Mapper"] --> WriteRoom["Room"] --> RefreshFlow["Flow"] --> RefreshUi["UI"]
+    end
+```
+
+Reads come from Room-backed `Flow`s. Refresh operations call GitHub, map DTOs into persistence models, write Room, and let Flow emissions update UI state. See [ARCHITECTURE.md](ARCHITECTURE.md) for the deeper module and synchronization rationale.
+
+## Module Structure
+
+- `:app` - composition root, Hilt application setup, and top-level navigation.
+- `:core:model` - dependency-free domain models consumed by app and feature code.
+- `:core:network` - GitHub REST API, Retrofit/OkHttp setup, and remote DTOs.
+- `:core:database` - Room database, DAOs, entities, saved-state table, and sync metadata.
+- `:core:data` - repository contracts/implementations, mapping, errors, refresh policy, and synchronization.
+- `:core:designsystem` - shared Material 3 theme and UI primitives.
+- `:core:common` and `:core:testing` - shared foundations and test utilities.
+- `:feature:search`, `:feature:developer`, `:feature:repository`, `:feature:saved` - independent feature slices that consume core contracts.
+
+Feature modules do not depend on each other and do not directly depend on network or database modules.
+
+## Offline-First Strategy
+
+Room is the observable source of truth. Screens observe repository contracts that expose local `Flow`s, while refresh methods update Room rather than returning parallel UI data.
+
+If refresh fails, cached data remains visible and the failure is surfaced as a non-destructive state. Saved repositories are locally owned in a separate table, so user intent is preserved across remote repository-list refreshes.
+
+## Testing And Quality
+
+- Mapper tests verify DTO/entity/domain transformations.
+- In-memory Room repository tests cover synchronization, saved-state preservation, deleted-row handling, and error mapping.
+- ViewModel tests cover screen-level state and refresh behavior.
+- Compose/Robolectric tests cover important UI states and interactions.
+- Android lint, Detekt, unit tests, and debug assembly run in GitHub Actions.
+- Task 007 validated the MVP on an API 36 Android emulator with real screenshots.
 
 ## Build
 
 ```sh
-./gradlew assembleDebug
 ./gradlew test
+./gradlew lintDebug
+./gradlew detekt
+./gradlew assembleDebug
 ```
+
+## Known Limitations
+
+- GitHub API access is unauthenticated.
+- Unauthenticated GitHub rate limits apply.
+- Only the first 100 repositories are synchronized for a developer.
+- Full pagination is not implemented.
+- Paging 3 is not implemented.
+- Background sync and WorkManager are not implemented.
+- GitHub authentication is not implemented.
+- README, commit, contributor, and release views are not implemented.
+
+## Engineering Decisions
+
+- DTOs, Room entities, and domain models are separate shapes.
+- `RefreshPolicy.IfStale` supports automatic cache-aware refresh; `RefreshPolicy.Force` supports explicit user refresh.
+- Saved state is stored separately from the remote repository snapshot.
+- Navigation passes stable identifiers instead of domain objects.

@@ -21,5 +21,5 @@ Saved state is locally owned in a dedicated saved-repository table. Remote repos
 
 - GitHub access is unauthenticated.
 - Repository list refresh currently requests page 1 with up to 100 repositories; full pagination is not implemented yet.
-- Paging 3, WorkManager, background sync, README fetching, commit history, contributors, releases, and screenshots are intentionally out of scope.
+- Paging 3, WorkManager, background sync, README fetching, commit history, contributors, and releases are intentionally out of scope.
 - Cached saved repository details may be stale until a future individual refresh succeeds.
