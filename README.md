@@ -4,15 +4,17 @@ DevPulse is a production-quality Android project for exploring GitHub developer 
 
 ## Current Status
 
-This repository currently contains the initial project structure, the first Room-backed offline-first data layer, Hilt dependency injection, and the first UI vertical slice from Search to Developer Dashboard.
+This repository currently contains the initial project structure, the first Room-backed offline-first data layer, Hilt dependency injection, and the primary MVP navigation: Explore, Developer Dashboard, Repository Detail, and Saved Repositories.
 
-Repository Detail, Saved screens, authentication, full GitHub pagination, Paging 3, WorkManager, and background sync are intentionally not implemented yet.
+Authentication, full GitHub pagination, Paging 3, WorkManager, background sync, README fetching, commit history, contributors, and releases are intentionally not implemented yet.
 
 ## Planned Architecture
 
 DevPulse is organized as a modular Android app with `:app` as the composition root. Feature modules remain independent from one another and consume shared foundations from `:core:*` modules. `:core:data` is the application data boundary that coordinates GitHub network refreshes with Room persistence while keeping DTOs, entities, and domain models separate.
 
 Reads come from Room-backed `Flow`s. Refresh operations update Room and return `DataResult<Unit>`, allowing cached data to remain observable even when a network request fails. `:app` owns top-level navigation and dependency graph assembly; feature modules expose routes and stay independent from each other.
+
+Saved repository state is locally owned. Owner-list synchronization preserves saved cached repositories even when they disappear from a later list response, and unsaving allows known-missing cached rows to be cleaned up.
 
 ## Module Overview
 
@@ -26,8 +28,8 @@ Reads come from Room-backed `Flow`s. Refresh operations update Room and return `
 - `:core:testing` - Shared testing utilities and test dependencies.
 - `:feature:search` - Search route and username submission UI.
 - `:feature:developer` - Developer Dashboard route, ViewModel, screen state, and cached repository list UI.
-- `:feature:repository` - Future repository feature boundary.
-- `:feature:saved` - Future saved items feature boundary.
+- `:feature:repository` - Repository Detail route, ViewModel, state, save/unsave actions, and GitHub link action.
+- `:feature:saved` - Saved repositories route, ViewModel, local saved list UI, unsave action, and repository navigation.
 
 ## Build
 

@@ -55,3 +55,19 @@ Screen state should allow cached content, loading, and refresh errors to coexist
 ## 2026-09-09: Match Library Versions To The Project Toolchain
 
 Choosing the latest library blindly can pull transitive artifacts that require a newer compile SDK or Android Gradle Plugin. Prefer versions that fit the project toolchain unless the task explicitly upgrades that toolchain; document the compatibility reason.
+
+## 2026-09-23: Local Intent Must Outlive Remote Snapshots
+
+Saved repository state is user intent, not GitHub-owned data. Owner-list replacement may delete missing unsaved rows, but it must preserve saved rows and saved intent. Marking a saved row as missing from the owner list gives the app enough information to clean it up later when the user unsaves without silently discarding saved content during synchronization.
+
+## 2026-09-23: Saved Screens Should Be Local-First
+
+Opening Saved should not require network access. Saved is a view over durable local intent plus cached repository details; refresh belongs to Repository Detail or explicit future sync surfaces, not to basic saved-list entry.
+
+## 2026-09-23: Shared Destinations Still Belong To App Navigation
+
+Repository Detail can be reached from Developer or Saved, but feature modules still should not depend on each other. Pass owner/name callbacks up to `:app`, let `:app` navigate, and let Repository Detail load its own state from `RepositoryCatalog`.
+
+## 2026-09-23: Format Typed Domain Values At Presentation Edges
+
+Keep domain values typed, such as `Repository.updatedAt: Instant?`, and format them in presentation-specific mappers or formatters. This keeps `:core:model` free of Android formatting concerns while making UI output testable.

@@ -70,13 +70,19 @@ Feature modules do not know how these dependencies are built. They depend on rep
 
 `:app` owns top-level navigation. Feature modules expose route-level composables and destination constants, but they do not navigate directly to each other and do not depend on sibling feature modules.
 
-The current graph intentionally contains only:
+The MVP graph has two top-level destinations:
 
 ```text
-search -> developer/{username}
+Explore
+  search -> developer/{username} -> repository/{owner}/{repositoryName}
+
+Saved
+  saved -> repository/{owner}/{repositoryName}
 ```
 
-Navigation passes the developer username identifier only. Domain models are loaded by the destination from repositories so navigation arguments remain small, stable, serializable, and independent of cache shape.
+Explore and Saved are switched with a Material 3 `NavigationBar`; the app graph preserves top-level back-stack state when moving between them. Repository Detail is a shared destination reachable from either top-level flow.
+
+Navigation passes stable identifiers only: developer username for Developer, and owner plus repository name for Repository Detail. Domain models are loaded by the destination from repositories so navigation arguments remain small, stable, serializable, and independent of cache shape.
 
 ## Model Boundaries
 
@@ -117,7 +123,9 @@ Repository profile fields such as name, description, language, counts, archived/
 
 Saved state is locally owned and lives in a separate `saved_repositories` table keyed by repository id. Remote refreshes do not write a saved flag, and list replacement only removes missing repositories that are not saved. This keeps user intent from being cleared by a network snapshot.
 
-Saved repository observation joins `saved_repositories` with `repositories`, so saved items are emitted when DevPulse has a local repository snapshot for them. A future detail refresh can hydrate saved ids that are known locally but missing repository details.
+Saved repository observation joins `saved_repositories` with `repositories`, so saved items are emitted when DevPulse has a local repository snapshot for them. There is intentionally no cascade delete from `repositories` into `saved_repositories`; saved intent outlives an owner-list snapshot.
+
+When a complete owner-list refresh no longer contains a saved repository, DevPulse marks the cached repository row as missing from that owner list but preserves the row and saved intent. If the user later unsaves that known-missing repository, the stale cached row can be deleted. The trade-off is that Saved can keep showing cached data that may be stale until a future individual repository refresh confirms availability.
 
 ## Synchronization
 
@@ -125,7 +133,7 @@ Saved repository observation joins `saved_repositories` with `repositories`, so 
 
 Repository-list refreshes explicitly request `per_page=100` and `page=1`. This avoids silently relying on GitHub's 30-item default while keeping the API shape ready for a later pagination loop. Paging 3 and background sync are intentionally out of scope for now.
 
-After a complete repository-list snapshot, unsaved repositories for that owner that are missing from the response are deleted. Saved repositories are preserved because saved state is locally owned. With the current single-page MVP implementation, a response containing fewer than 100 repositories is treated as a complete snapshot; a full 100-item page defers deletion until pagination metadata is available so DevPulse does not accidentally remove repositories that may exist on a later page.
+After a complete repository-list snapshot, unsaved repositories for that owner that are missing from the response are deleted. Saved repositories are preserved and marked as owner-list-missing because saved state is locally owned. With the current single-page MVP implementation, a response containing fewer than 100 repositories is treated as a complete snapshot; a full 100-item page defers deletion until pagination metadata is available so DevPulse does not accidentally remove repositories that may exist on a later page.
 
 ## Cache Freshness
 
@@ -152,24 +160,32 @@ Rate-limited requests are not retried aggressively. Existing cached data remains
 
 ## Presentation State
 
-Developer presentation follows unidirectional data flow:
+Feature presentation follows unidirectional data flow:
 
 - The route receives `username`.
 - `DeveloperViewModel` observes Room-backed repository flows.
-- The ViewModel exposes one immutable `StateFlow<DeveloperUiState>`.
+- `RepositoryViewModel` receives owner/repository name, observes the cached repository, triggers stale-aware refresh, and toggles saved state through `RepositoryCatalog`.
+- `SavedViewModel` observes saved repositories only; opening Saved does not require a network refresh.
+- Each ViewModel exposes one immutable screen-level `StateFlow`.
 - Compose renders from that state and calls ordinary ViewModel functions such as `onRefresh()` and `onRetry()`.
 
-`DeveloperUiState` is a data class rather than one mutually exclusive sealed state because valid screen states can overlap. Cached content can be visible while a refresh is in progress, and cached content can remain visible with a non-destructive refresh error.
+Screen state is data-class based rather than one mutually exclusive sealed state because valid states can overlap. Cached content can be visible while a refresh is in progress, cached content can remain visible with a non-destructive refresh error, and repository content can remain visible with a save/unsave persistence error.
 
 Feature-level UI errors map from `DevPulseError` without exposing Retrofit exceptions, SQL exceptions, DTOs, or Room entities to Compose.
 
+Repository updated time remains `Instant?` in `:core:model` and is formatted in the Repository presentation layer. Android `Context`-dependent formatting is not pushed into the domain model.
+
 ## Current Vertical Slice
 
-`:core:designsystem` provides `DevPulseTheme`, a small Material 3 theme wrapper. `:app` uses that theme and owns navigation between the Search and Developer feature routes.
+`:core:designsystem` provides `DevPulseTheme`, a small Material 3 theme wrapper. `:app` uses that theme and owns top-level navigation between Explore and Saved.
 
 Search collects and validates a GitHub username locally, then asks the app navigation layer to open the Developer destination. Search does not call GitHub just to navigate.
 
-Developer observes cached Room data immediately, triggers an automatic `RefreshPolicy.IfStale` refresh through `DeveloperRepository`, and uses forced refresh for manual retry/refresh actions. Repository rows render from the cached list; repository detail and saved screens remain out of scope.
+Developer observes cached Room data immediately, triggers an automatic `RefreshPolicy.IfStale` refresh through `DeveloperRepository`, and uses forced refresh for manual retry/refresh actions. Repository rows render from the cached list and navigate by owner/name.
+
+Repository Detail observes one cached repository, triggers an automatic stale-aware refresh, supports forced manual refresh, and toggles saved state through Room-backed repository APIs. The external GitHub action is handled at the route/UI edge via the repository URL; the ViewModel does not receive Android `Context`.
+
+Saved observes locally saved repositories from Room and performs no required network refresh on open. Unsave updates local persistence and the observed Flow drives the UI update.
 
 ## Planned Direction
 
