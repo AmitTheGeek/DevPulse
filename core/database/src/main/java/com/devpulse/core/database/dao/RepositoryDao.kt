@@ -73,10 +73,48 @@ interface RepositoryDao {
 
     @Query(
         """
+        UPDATE repositories
+        SET ownerListMissingAtEpochMillis = :missingAtEpochMillis
+        WHERE ownerUsername = :ownerUsername COLLATE NOCASE
+        AND id NOT IN (:repositoryIds)
+        AND id IN (SELECT repositoryId FROM saved_repositories)
+        """,
+    )
+    suspend fun markSavedRepositoriesMissingFromOwnerList(
+        ownerUsername: String,
+        repositoryIds: List<Long>,
+        missingAtEpochMillis: Long,
+    )
+
+    @Query(
+        """
         DELETE FROM repositories
         WHERE ownerUsername = :ownerUsername COLLATE NOCASE
         AND id NOT IN (SELECT repositoryId FROM saved_repositories)
         """,
     )
     suspend fun deleteUnsavedRepositoriesForOwner(ownerUsername: String)
+
+    @Query(
+        """
+        UPDATE repositories
+        SET ownerListMissingAtEpochMillis = :missingAtEpochMillis
+        WHERE ownerUsername = :ownerUsername COLLATE NOCASE
+        AND id IN (SELECT repositoryId FROM saved_repositories)
+        """,
+    )
+    suspend fun markSavedRepositoriesMissingFromOwnerListForOwner(
+        ownerUsername: String,
+        missingAtEpochMillis: Long,
+    )
+
+    @Query(
+        """
+        DELETE FROM repositories
+        WHERE id = :repositoryId
+        AND ownerListMissingAtEpochMillis IS NOT NULL
+        AND id NOT IN (SELECT repositoryId FROM saved_repositories)
+        """,
+    )
+    suspend fun deleteRepositoryIfKnownMissingFromOwnerList(repositoryId: Long)
 }

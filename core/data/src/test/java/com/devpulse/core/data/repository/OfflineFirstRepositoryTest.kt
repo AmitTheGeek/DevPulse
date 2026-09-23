@@ -29,6 +29,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -215,6 +216,33 @@ class OfflineFirstRepositoryTest {
         assertEquals(1, savedRepositories.size)
         assertEquals("Saved-One", savedRepositories.single().name)
         assertTrue(savedRepositories.single().isSaved)
+    }
+
+    @Test
+    fun ownerListRefreshDoesNotDestroyExplicitlySavedRepositoryIntent() = runTest {
+        database.repositoryDao().upsertRepository(sampleRepositoryEntity(id = 10L, name = "Saved-Stale"))
+        assertSuccess(repositoryCatalog.setRepositorySaved(id = 10L, saved = true))
+        gitHubApi.repositoriesResult = Result.success(emptyList())
+
+        assertSuccess(repositoryCatalog.refreshRepositories("octocat"))
+
+        assertNotNull(database.savedRepositoryDao().getSavedRepository(10L))
+        val savedRepositories = repositoryCatalog.observeSavedRepositories().first()
+        assertEquals(listOf("Saved-Stale"), savedRepositories.map { it.name })
+    }
+
+    @Test
+    fun unsavingKnownMissingRepositoryAllowsCachedRowCleanup() = runTest {
+        database.repositoryDao().upsertRepository(sampleRepositoryEntity(id = 11L, name = "Saved-Stale"))
+        assertSuccess(repositoryCatalog.setRepositorySaved(id = 11L, saved = true))
+        gitHubApi.repositoriesResult = Result.success(emptyList())
+        assertSuccess(repositoryCatalog.refreshRepositories("octocat"))
+
+        assertSuccess(repositoryCatalog.setRepositorySaved(id = 11L, saved = false))
+
+        assertNull(database.savedRepositoryDao().getSavedRepository(11L))
+        assertNull(database.repositoryDao().getRepository("octocat", "Saved-Stale"))
+        assertTrue(repositoryCatalog.observeSavedRepositories().first().isEmpty())
     }
 
     @Test

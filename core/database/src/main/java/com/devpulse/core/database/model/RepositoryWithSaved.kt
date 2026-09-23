@@ -18,7 +18,7 @@ data class RepositoryWithSaved(
     val isArchived: Boolean,
     val isPrivate: Boolean,
     val updatedAtEpochMillis: Long?,
+    val ownerListMissingAtEpochMillis: Long?,
     @ColumnInfo(name = "isSaved")
     val isSaved: Boolean,
 )
-

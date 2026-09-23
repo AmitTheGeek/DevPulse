@@ -21,6 +21,7 @@ internal suspend fun DevPulseDatabase.syncDeveloperSnapshot(
             ownerUsername = repositories.firstOrNull()?.owner?.login ?: developer.login,
             repositories = repositories,
             isCompleteSnapshot = repositories.isKnownCompletePage(),
+            refreshedAtEpochMillis = refreshedAtEpochMillis,
         )
         syncMetadataDao().upsertSyncMetadata(
             SyncMetadataEntity(
@@ -49,6 +50,7 @@ internal suspend fun DevPulseDatabase.syncRepositoryListSnapshot(
             ownerUsername = ownerUsername,
             repositories = repositories,
             isCompleteSnapshot = repositories.isKnownCompletePage(),
+            refreshedAtEpochMillis = refreshedAtEpochMillis,
         )
         syncMetadataDao().upsertSyncMetadata(
             SyncMetadataEntity(
@@ -81,14 +83,24 @@ private suspend fun DevPulseDatabase.syncRepositoryList(
     ownerUsername: String,
     repositories: List<GitHubRepositoryDto>,
     isCompleteSnapshot: Boolean,
+    refreshedAtEpochMillis: Long,
 ) {
     repositoryDao().upsertRepositories(repositories.map { it.toRepositoryEntity() })
     if (!isCompleteSnapshot) return
 
     val repositoryIds = repositories.map { it.id }
     if (repositoryIds.isEmpty()) {
+        repositoryDao().markSavedRepositoriesMissingFromOwnerListForOwner(
+            ownerUsername = ownerUsername,
+            missingAtEpochMillis = refreshedAtEpochMillis,
+        )
         repositoryDao().deleteUnsavedRepositoriesForOwner(ownerUsername)
     } else {
+        repositoryDao().markSavedRepositoriesMissingFromOwnerList(
+            ownerUsername = ownerUsername,
+            repositoryIds = repositoryIds,
+            missingAtEpochMillis = refreshedAtEpochMillis,
+        )
         repositoryDao().deleteUnsavedRepositoriesNotIn(
             ownerUsername = ownerUsername,
             repositoryIds = repositoryIds,

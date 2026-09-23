@@ -18,7 +18,7 @@ import com.devpulse.core.database.entity.SyncMetadataEntity
         SavedRepositoryEntity::class,
         SyncMetadataEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class DevPulseDatabase : RoomDatabase() {

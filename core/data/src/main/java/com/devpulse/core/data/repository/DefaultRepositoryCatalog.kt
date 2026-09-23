@@ -1,5 +1,6 @@
 package com.devpulse.core.data.repository
 
+import androidx.room.withTransaction
 import com.devpulse.core.data.cache.CacheFreshnessChecker
 import com.devpulse.core.data.cache.DevPulseClock
 import com.devpulse.core.data.cache.SyncKeys
@@ -95,20 +96,25 @@ class DefaultRepositoryCatalog @Inject constructor(
 
     override suspend fun setRepositorySaved(id: Long, saved: Boolean): DataResult<Unit> =
         try {
-            if (saved) {
-                val repository = database.repositoryDao().getRepositoryById(id)
-                    ?: return DataResult.Failure(DevPulseError.NotFound)
-                database.savedRepositoryDao().upsertSavedRepository(
-                    SavedRepositoryEntity(
-                        repositoryId = repository.id,
-                        savedAtEpochMillis = clock.nowEpochMillis(),
-                    ),
-                )
-            } else {
-                database.savedRepositoryDao().deleteSavedRepository(id)
+            database.withTransaction {
+                if (saved) {
+                    val repository = database.repositoryDao().getRepositoryById(id)
+                        ?: throw RepositoryNotFoundException
+                    database.savedRepositoryDao().upsertSavedRepository(
+                        SavedRepositoryEntity(
+                            repositoryId = repository.id,
+                            savedAtEpochMillis = clock.nowEpochMillis(),
+                        ),
+                    )
+                } else {
+                    database.savedRepositoryDao().deleteSavedRepository(id)
+                    database.repositoryDao().deleteRepositoryIfKnownMissingFromOwnerList(id)
+                }
             }
 
             DataResult.Success(Unit)
+        } catch (_: RepositoryNotFoundException) {
+            DataResult.Failure(DevPulseError.NotFound)
         } catch (throwable: Throwable) {
             DataResult.Failure(throwable.toDevPulseError())
         }
@@ -118,3 +124,5 @@ class DefaultRepositoryCatalog @Inject constructor(
             .observeSavedRepositories()
             .map { repositories -> repositories.map { it.toRepository() } }
 }
+
+private object RepositoryNotFoundException : Throwable()

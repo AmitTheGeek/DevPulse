@@ -3,6 +3,7 @@ package com.devpulse.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.devpulse.core.database.DevPulseDatabase
+import com.devpulse.core.database.DevPulseDatabaseMigrations
 import com.devpulse.core.database.dao.DeveloperDao
 import com.devpulse.core.database.dao.RepositoryDao
 import com.devpulse.core.database.dao.SavedRepositoryDao
@@ -28,7 +29,9 @@ object DatabaseModule {
             context,
             DevPulseDatabase::class.java,
             DATABASE_NAME,
-        ).build()
+        )
+            .addMigrations(DevPulseDatabaseMigrations.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideDeveloperDao(database: DevPulseDatabase): DeveloperDao =

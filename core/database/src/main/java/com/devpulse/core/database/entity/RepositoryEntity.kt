@@ -29,4 +29,5 @@ data class RepositoryEntity(
     val isArchived: Boolean,
     val isPrivate: Boolean,
     val updatedAtEpochMillis: Long?,
+    val ownerListMissingAtEpochMillis: Long? = null,
 )
