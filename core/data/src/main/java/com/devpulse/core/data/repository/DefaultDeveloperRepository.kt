@@ -1,11 +1,10 @@
 package com.devpulse.core.data.repository
 
-import android.database.SQLException
 import com.devpulse.core.data.cache.CacheFreshnessChecker
 import com.devpulse.core.data.cache.DevPulseClock
 import com.devpulse.core.data.cache.SyncKeys
 import com.devpulse.core.data.error.DataResult
-import com.devpulse.core.data.error.toDevPulseError
+import com.devpulse.core.data.error.dataResultOf
 import com.devpulse.core.data.mapper.toDeveloper
 import com.devpulse.core.data.sync.syncDeveloperSnapshot
 import com.devpulse.core.database.DevPulseDatabase
@@ -14,8 +13,6 @@ import com.devpulse.core.network.github.service.GitHubApi
 import com.devpulse.core.network.github.service.GitHubApiPaging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import retrofit2.HttpException
-import java.io.IOException
 import javax.inject.Inject
 
 class DefaultDeveloperRepository @Inject constructor(
@@ -32,15 +29,14 @@ class DefaultDeveloperRepository @Inject constructor(
     override suspend fun refreshDeveloper(
         username: String,
         refreshPolicy: RefreshPolicy,
-    ): DataResult<Unit> {
-        return try {
-            if (
+    ): DataResult<Unit> =
+        dataResultOf {
+            val isFresh =
                 refreshPolicy == RefreshPolicy.IfStale &&
-                cacheFreshnessChecker.isFresh(SyncKeys.developer(username)) &&
-                cacheFreshnessChecker.isFresh(SyncKeys.repositories(username))
-            ) {
-                DataResult.Success(Unit)
-            } else {
+                    cacheFreshnessChecker.isFresh(SyncKeys.developer(username)) &&
+                    cacheFreshnessChecker.isFresh(SyncKeys.repositories(username))
+
+            if (!isFresh) {
                 val developer = gitHubApi.getUser(username)
                 val repositories = gitHubApi.getUserRepositories(
                     username = username,
@@ -53,15 +49,6 @@ class DefaultDeveloperRepository @Inject constructor(
                     repositories = repositories,
                     refreshedAtEpochMillis = clock.nowEpochMillis(),
                 )
-
-                DataResult.Success(Unit)
             }
-        } catch (exception: IOException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: HttpException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: SQLException) {
-            DataResult.Failure(exception.toDevPulseError())
         }
-    }
 }

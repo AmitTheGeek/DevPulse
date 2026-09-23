@@ -1,12 +1,12 @@
 package com.devpulse.core.data.repository
 
-import android.database.SQLException
 import androidx.room.withTransaction
 import com.devpulse.core.data.cache.CacheFreshnessChecker
 import com.devpulse.core.data.cache.DevPulseClock
 import com.devpulse.core.data.cache.SyncKeys
 import com.devpulse.core.data.error.DataResult
 import com.devpulse.core.data.error.DevPulseError
+import com.devpulse.core.data.error.dataResultOf
 import com.devpulse.core.data.error.toDevPulseError
 import com.devpulse.core.data.mapper.toRepository
 import com.devpulse.core.data.sync.syncRepositoryListSnapshot
@@ -18,8 +18,6 @@ import com.devpulse.core.network.github.service.GitHubApi
 import com.devpulse.core.network.github.service.GitHubApiPaging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import retrofit2.HttpException
-import java.io.IOException
 import javax.inject.Inject
 
 class DefaultRepositoryCatalog @Inject constructor(
@@ -41,14 +39,13 @@ class DefaultRepositoryCatalog @Inject constructor(
     override suspend fun refreshRepositories(
         username: String,
         refreshPolicy: RefreshPolicy,
-    ): DataResult<Unit> {
-        return try {
-            if (
+    ): DataResult<Unit> =
+        dataResultOf {
+            val isFresh =
                 refreshPolicy == RefreshPolicy.IfStale &&
                 cacheFreshnessChecker.isFresh(SyncKeys.repositories(username))
-            ) {
-                DataResult.Success(Unit)
-            } else {
+
+            if (!isFresh) {
                 val repositories = gitHubApi.getUserRepositories(
                     username = username,
                     perPage = GitHubApiPaging.MAX_PAGE_SIZE,
@@ -60,30 +57,20 @@ class DefaultRepositoryCatalog @Inject constructor(
                     repositories = repositories,
                     refreshedAtEpochMillis = clock.nowEpochMillis(),
                 )
-
-                DataResult.Success(Unit)
             }
-        } catch (exception: IOException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: HttpException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: SQLException) {
-            DataResult.Failure(exception.toDevPulseError())
         }
-    }
 
     override suspend fun refreshRepository(
         owner: String,
         repositoryName: String,
         refreshPolicy: RefreshPolicy,
-    ): DataResult<Unit> {
-        return try {
-            if (
+    ): DataResult<Unit> =
+        dataResultOf {
+            val isFresh =
                 refreshPolicy == RefreshPolicy.IfStale &&
                 cacheFreshnessChecker.isFresh(SyncKeys.repository(owner, repositoryName))
-            ) {
-                DataResult.Success(Unit)
-            } else {
+
+            if (!isFresh) {
                 val repository = gitHubApi.getRepository(
                     owner = owner,
                     repo = repositoryName,
@@ -93,20 +80,19 @@ class DefaultRepositoryCatalog @Inject constructor(
                     repository = repository,
                     refreshedAtEpochMillis = clock.nowEpochMillis(),
                 )
-
-                DataResult.Success(Unit)
             }
-        } catch (exception: IOException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: HttpException) {
-            DataResult.Failure(exception.toDevPulseError())
-        } catch (exception: SQLException) {
-            DataResult.Failure(exception.toDevPulseError())
         }
-    }
 
     override suspend fun setRepositorySaved(id: Long, saved: Boolean): DataResult<Unit> =
-        try {
+        dataResultOf(
+            mapException = { exception ->
+                if (exception is RepositoryNotFoundException) {
+                    DevPulseError.NotFound
+                } else {
+                    exception.toDevPulseError()
+                }
+            },
+        ) {
             database.withTransaction {
                 if (saved) {
                     val repository = database.repositoryDao().getRepositoryById(id)
@@ -122,12 +108,6 @@ class DefaultRepositoryCatalog @Inject constructor(
                     database.repositoryDao().deleteRepositoryIfKnownMissingFromOwnerList(id)
                 }
             }
-
-            DataResult.Success(Unit)
-        } catch (_: RepositoryNotFoundException) {
-            DataResult.Failure(DevPulseError.NotFound)
-        } catch (exception: SQLException) {
-            DataResult.Failure(exception.toDevPulseError())
         }
 
     override fun observeSavedRepositories(): Flow<List<Repository>> =
@@ -136,4 +116,4 @@ class DefaultRepositoryCatalog @Inject constructor(
             .map { repositories -> repositories.map { it.toRepository() } }
 }
 
-private object RepositoryNotFoundException : Throwable()
+private object RepositoryNotFoundException : Exception()

@@ -1,5 +1,6 @@
 package com.devpulse.core.data.repository
 
+import android.database.SQLException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.devpulse.core.data.cache.CacheFreshnessChecker
@@ -17,6 +18,7 @@ import com.devpulse.core.network.github.dto.GitHubUserDto
 import com.devpulse.core.network.github.service.GitHubApi
 import com.devpulse.core.network.github.service.GitHubApiPaging
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -30,7 +32,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -150,6 +154,41 @@ class OfflineFirstRepositoryTest {
         assertFailure<DevPulseError.NetworkUnavailable>(result)
         val repositories = repositoryCatalog.observeRepositories("octocat").first()
         assertEquals("Cached", repositories.single().name)
+    }
+
+    @Test
+    fun unexpectedRefreshExceptionMapsToUnknownDataError() = runTest {
+        val exception = IllegalStateException("unexpected")
+        gitHubApi.repositoriesResult = Result.failure(exception)
+
+        val result = repositoryCatalog.refreshRepositories("octocat")
+
+        val error = assertFailure<DevPulseError.Unknown>(result)
+        assertSame(exception, error.cause)
+    }
+
+    @Test
+    fun cancellationExceptionPropagatesFromRefresh() = runTest {
+        val cancellationException = CancellationException("refresh cancelled")
+        gitHubApi.repositoriesResult = Result.failure(cancellationException)
+
+        try {
+            repositoryCatalog.refreshRepositories("octocat")
+            fail("Expected CancellationException to propagate")
+        } catch (exception: CancellationException) {
+            assertSame(cancellationException, exception)
+        }
+    }
+
+    @Test
+    fun sqlExceptionMapsToLocalStorageDataError() = runTest {
+        val exception = SQLException("local storage failed")
+        gitHubApi.repositoriesResult = Result.failure(exception)
+
+        val result = repositoryCatalog.refreshRepositories("octocat")
+
+        val error = assertFailure<DevPulseError.LocalStorageError>(result)
+        assertSame(exception, error.cause)
     }
 
     @Test
@@ -394,9 +433,11 @@ class OfflineFirstRepositoryTest {
         assertTrue(result is DataResult.Success)
     }
 
-    private inline fun <reified T : DevPulseError> assertFailure(result: DataResult<Unit>) {
+    private inline fun <reified T : DevPulseError> assertFailure(result: DataResult<Unit>): T {
         assertTrue(result is DataResult.Failure)
-        assertTrue((result as DataResult.Failure).error is T)
+        val error = (result as DataResult.Failure).error
+        assertTrue(error is T)
+        return error as T
     }
 
     private class FixedClock(
