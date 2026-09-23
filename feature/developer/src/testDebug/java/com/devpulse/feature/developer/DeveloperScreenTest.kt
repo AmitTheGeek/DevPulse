@@ -106,11 +106,36 @@ class DeveloperScreenTest {
         composeRule.onNodeWithText(DeveloperUiError.NetworkUnavailable.message).assertIsDisplayed()
     }
 
+    @Test
+    fun repositoryRowClickEmitsRepositoryIdentity() {
+        var selectedRepository: Pair<String, String>? = null
+        setDeveloperContent(
+            uiState = DeveloperUiState(
+                username = "octocat",
+                developer = sampleDeveloper(),
+                repositories = listOf(sampleRepository()),
+            ),
+            onRepositoryClick = { owner, repositoryName ->
+                selectedRepository = owner to repositoryName
+            },
+        )
+
+        composeRule
+            .onNodeWithTag(DeveloperTestTags.repositoryRow("octocat/Hello-World"))
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(selectedRepository == "octocat" to "Hello-World")
+        }
+    }
+
     private fun setDeveloperContent(
         uiState: DeveloperUiState,
         onRefresh: () -> Unit = {},
         onRetry: () -> Unit = {},
         onBackClick: () -> Unit = {},
+        onRepositoryClick: (owner: String, repositoryName: String) -> Unit = { _, _ -> },
     ) {
         composeRule.setContent {
             DevPulseTheme {
@@ -119,6 +144,7 @@ class DeveloperScreenTest {
                     onRefresh = onRefresh,
                     onRetry = onRetry,
                     onBackClick = onBackClick,
+                    onRepositoryClick = onRepositoryClick,
                 )
             }
         }

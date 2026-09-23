@@ -1,6 +1,7 @@
 package com.devpulse.feature.developer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,12 +55,15 @@ import java.time.Instant
 object DeveloperTestTags {
     const val REFRESH_BUTTON = "developer:refresh"
     const val RETRY_BUTTON = "developer:retry"
+
+    fun repositoryRow(fullName: String): String = "developer:repository:$fullName"
 }
 
 @Composable
 fun DeveloperRoute(
     username: String,
     onBackClick: () -> Unit,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DeveloperViewModel = hiltViewModel(),
 ) {
@@ -70,6 +74,7 @@ fun DeveloperRoute(
         onRefresh = viewModel::onRefresh,
         onRetry = viewModel::onRetry,
         onBackClick = onBackClick,
+        onRepositoryClick = onRepositoryClick,
         modifier = modifier,
     )
 }
@@ -80,6 +85,7 @@ fun DeveloperScreen(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onBackClick: () -> Unit,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -105,6 +111,7 @@ fun DeveloperScreen(
             uiState.hasContent -> DeveloperContent(
                 uiState = uiState,
                 onRefresh = onRefresh,
+                onRepositoryClick = onRepositoryClick,
             )
         }
     }
@@ -198,6 +205,7 @@ private fun InitialErrorContent(
 private fun DeveloperContent(
     uiState: DeveloperUiState,
     onRefresh: () -> Unit,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
 ) {
     val developer = uiState.developer ?: return
 
@@ -228,7 +236,10 @@ private fun DeveloperContent(
                 items = uiState.repositories,
                 key = { repository -> repository.id },
             ) { repository ->
-                RepositoryListItem(repository = repository)
+                RepositoryListItem(
+                    repository = repository,
+                    onRepositoryClick = onRepositoryClick,
+                )
             }
         }
     }
@@ -386,9 +397,13 @@ private fun EmptyRepositories(
 @Composable
 private fun RepositoryListItem(
     repository: Repository,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onRepositoryClick(repository.ownerUsername, repository.name) }
+            .testTag(DeveloperTestTags.repositoryRow(repository.fullName)),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -570,6 +585,7 @@ private fun DeveloperScreenPreview() {
             onRefresh = {},
             onRetry = {},
             onBackClick = {},
+            onRepositoryClick = { _, _ -> },
         )
     }
 }
