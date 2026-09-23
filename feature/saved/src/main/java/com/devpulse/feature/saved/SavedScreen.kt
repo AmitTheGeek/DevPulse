@@ -39,11 +39,6 @@ import com.devpulse.core.designsystem.DevPulseTheme
 import com.devpulse.core.model.Repository
 import java.time.Instant
 
-object SavedTestTags {
-    fun repositoryRow(fullName: String): String = "saved:repository:$fullName"
-    fun unsaveButton(repositoryId: Long): String = "saved:unsave:$repositoryId"
-}
-
 @Composable
 fun SavedRoute(
     onRepositoryClick: (owner: String, repositoryName: String) -> Unit,

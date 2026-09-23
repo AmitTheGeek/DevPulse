@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -38,43 +39,44 @@ import com.devpulse.feature.saved.SavedRoute
 import com.devpulse.feature.search.SearchDestination
 import com.devpulse.feature.search.SearchRoute
 
-object ExploreDestination {
-    const val ROUTE = "explore"
-}
+private typealias DeveloperContent = @Composable (
+    username: String,
+    onBackClick: () -> Unit,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
+) -> Unit
 
-object DevPulseNavigationTestTags {
-    fun topLevelDestination(route: String): String = "navigation:$route"
-}
+private typealias RepositoryContent = @Composable (
+    owner: String,
+    repositoryName: String,
+    onBackClick: () -> Unit,
+) -> Unit
+
+private typealias SavedContent = @Composable (
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
+) -> Unit
+
+private class DevPulseNavigationContent(
+    val developer: DeveloperContent,
+    val repository: RepositoryContent,
+    val saved: SavedContent,
+)
 
 @Composable
 fun DevPulseNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    developerContent: @Composable (
-        username: String,
-        onBackClick: () -> Unit,
-        onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
-    ) -> Unit = { username, onBackClick, onRepositoryClick ->
+    developerContent: DeveloperContent = { _, onBackClick, onRepositoryClick ->
         DeveloperRoute(
-            username = username,
             onBackClick = onBackClick,
             onRepositoryClick = onRepositoryClick,
         )
     },
-    repositoryContent: @Composable (
-        owner: String,
-        repositoryName: String,
-        onBackClick: () -> Unit,
-    ) -> Unit = { owner, repositoryName, onBackClick ->
+    repositoryContent: RepositoryContent = { _, _, onBackClick ->
         RepositoryRoute(
-            owner = owner,
-            repositoryName = repositoryName,
             onBackClick = onBackClick,
         )
     },
-    savedContent: @Composable (
-        onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
-    ) -> Unit = { onRepositoryClick ->
+    savedContent: SavedContent = { onRepositoryClick ->
         SavedRoute(
             onRepositoryClick = onRepositoryClick,
         )
@@ -82,22 +84,13 @@ fun DevPulseNavHost(
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
-    var selectedTopLevelRoute by rememberSaveable {
-        mutableStateOf(ExploreDestination.ROUTE)
-    }
-
-    LaunchedEffect(currentDestination?.route) {
-        when {
-            currentDestination.isInHierarchy(ExploreDestination.ROUTE) -> {
-                selectedTopLevelRoute = ExploreDestination.ROUTE
-            }
-            currentDestination?.route == SavedDestination.ROUTE -> {
-                selectedTopLevelRoute = SavedDestination.ROUTE
-            }
-        }
-    }
-
-    fun navigateToRepository(owner: String, repositoryName: String) {
+    val selectedTopLevelRoute = rememberSelectedTopLevelRoute(currentDestination)
+    val navigationContent = DevPulseNavigationContent(
+        developer = developerContent,
+        repository = repositoryContent,
+        saved = savedContent,
+    )
+    val navigateToRepository = { owner: String, repositoryName: String ->
         navController.navigate(RepositoryDestination.createRoute(owner, repositoryName))
     }
 
@@ -118,72 +111,129 @@ fun DevPulseNavHost(
             )
         },
     ) { innerPadding ->
-        NavHost(
+        DevPulseNavigationGraph(
             navController = navController,
-            startDestination = ExploreDestination.ROUTE,
             modifier = Modifier.padding(innerPadding),
-        ) {
-            navigation(
-                startDestination = SearchDestination.ROUTE,
-                route = ExploreDestination.ROUTE,
-            ) {
-                composable(SearchDestination.ROUTE) {
-                    SearchRoute(
-                        onDeveloperSearch = { username ->
-                            navController.navigate(DeveloperDestination.createRoute(username))
-                        },
-                    )
-                }
+            content = navigationContent,
+            onRepositoryClick = navigateToRepository,
+        )
+    }
+}
 
-                composable(
-                    route = DeveloperDestination.ROUTE_PATTERN,
-                    arguments = listOf(
-                        navArgument(DeveloperDestination.USERNAME_ARGUMENT) {
-                            type = NavType.StringType
-                        },
-                    ),
-                ) { developerBackStackEntry ->
-                    val username = developerBackStackEntry.arguments
-                        ?.getString(DeveloperDestination.USERNAME_ARGUMENT)
-                        .orEmpty()
+@Composable
+private fun rememberSelectedTopLevelRoute(
+    currentDestination: NavDestination?,
+): String {
+    var selectedTopLevelRoute by rememberSaveable {
+        mutableStateOf(ExploreDestination.ROUTE)
+    }
 
-                    developerContent(
-                        username,
-                        navController::navigateUp,
-                        ::navigateToRepository,
-                    )
-                }
+    LaunchedEffect(currentDestination?.route) {
+        when {
+            currentDestination.isInHierarchy(ExploreDestination.ROUTE) -> {
+                selectedTopLevelRoute = ExploreDestination.ROUTE
             }
-
-            composable(
-                route = RepositoryDestination.ROUTE_PATTERN,
-                arguments = listOf(
-                    navArgument(RepositoryDestination.OWNER_ARGUMENT) {
-                        type = NavType.StringType
-                    },
-                    navArgument(RepositoryDestination.REPOSITORY_NAME_ARGUMENT) {
-                        type = NavType.StringType
-                    },
-                ),
-            ) { repositoryBackStackEntry ->
-                val owner = repositoryBackStackEntry.arguments
-                    ?.getString(RepositoryDestination.OWNER_ARGUMENT)
-                    .orEmpty()
-                val repositoryName = repositoryBackStackEntry.arguments
-                    ?.getString(RepositoryDestination.REPOSITORY_NAME_ARGUMENT)
-                    .orEmpty()
-
-                repositoryContent(
-                    owner,
-                    repositoryName,
-                    navController::navigateUp,
-                )
-            }
-
-            composable(SavedDestination.ROUTE) {
-                savedContent(::navigateToRepository)
+            currentDestination?.route == SavedDestination.ROUTE -> {
+                selectedTopLevelRoute = SavedDestination.ROUTE
             }
         }
+    }
+
+    return selectedTopLevelRoute
+}
+
+@Composable
+private fun DevPulseNavigationGraph(
+    navController: NavHostController,
+    modifier: Modifier,
+    content: DevPulseNavigationContent,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
+) {
+    NavHost(
+        navController = navController,
+        startDestination = ExploreDestination.ROUTE,
+        modifier = modifier,
+    ) {
+        exploreGraph(navController, content.developer, onRepositoryClick)
+        repositoryDestination(navController, content.repository)
+        savedDestination(content.saved, onRepositoryClick)
+    }
+}
+
+private fun NavGraphBuilder.exploreGraph(
+    navController: NavHostController,
+    developerContent: DeveloperContent,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
+) {
+    navigation(
+        startDestination = SearchDestination.ROUTE,
+        route = ExploreDestination.ROUTE,
+    ) {
+        composable(SearchDestination.ROUTE) {
+            SearchRoute(
+                onDeveloperSearch = { username ->
+                    navController.navigate(DeveloperDestination.createRoute(username))
+                },
+            )
+        }
+
+        composable(
+            route = DeveloperDestination.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(DeveloperDestination.USERNAME_ARGUMENT) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { developerBackStackEntry ->
+            val username = developerBackStackEntry.arguments
+                ?.getString(DeveloperDestination.USERNAME_ARGUMENT)
+                .orEmpty()
+
+            developerContent(
+                username,
+                navController::navigateUp,
+                onRepositoryClick,
+            )
+        }
+    }
+}
+
+private fun NavGraphBuilder.repositoryDestination(
+    navController: NavHostController,
+    repositoryContent: RepositoryContent,
+) {
+    composable(
+        route = RepositoryDestination.ROUTE_PATTERN,
+        arguments = listOf(
+            navArgument(RepositoryDestination.OWNER_ARGUMENT) {
+                type = NavType.StringType
+            },
+            navArgument(RepositoryDestination.REPOSITORY_NAME_ARGUMENT) {
+                type = NavType.StringType
+            },
+        ),
+    ) { repositoryBackStackEntry ->
+        val owner = repositoryBackStackEntry.arguments
+            ?.getString(RepositoryDestination.OWNER_ARGUMENT)
+            .orEmpty()
+        val repositoryName = repositoryBackStackEntry.arguments
+            ?.getString(RepositoryDestination.REPOSITORY_NAME_ARGUMENT)
+            .orEmpty()
+
+        repositoryContent(
+            owner,
+            repositoryName,
+            navController::navigateUp,
+        )
+    }
+}
+
+private fun NavGraphBuilder.savedDestination(
+    savedContent: SavedContent,
+    onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
+) {
+    composable(SavedDestination.ROUTE) {
+        savedContent(onRepositoryClick)
     }
 }
 

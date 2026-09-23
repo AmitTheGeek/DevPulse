@@ -1,5 +1,6 @@
 package com.devpulse.core.data.repository
 
+import android.database.SQLException
 import com.devpulse.core.data.cache.CacheFreshnessChecker
 import com.devpulse.core.data.cache.DevPulseClock
 import com.devpulse.core.data.cache.SyncKeys
@@ -13,6 +14,8 @@ import com.devpulse.core.network.github.service.GitHubApi
 import com.devpulse.core.network.github.service.GitHubApiPaging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 class DefaultDeveloperRepository @Inject constructor(
@@ -53,8 +56,12 @@ class DefaultDeveloperRepository @Inject constructor(
 
                 DataResult.Success(Unit)
             }
-        } catch (throwable: Throwable) {
-            DataResult.Failure(throwable.toDevPulseError())
+        } catch (exception: IOException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: HttpException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: SQLException) {
+            DataResult.Failure(exception.toDevPulseError())
         }
     }
 }

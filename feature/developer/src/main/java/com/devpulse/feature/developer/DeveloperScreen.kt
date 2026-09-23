@@ -52,16 +52,8 @@ import com.devpulse.core.model.Developer
 import com.devpulse.core.model.Repository
 import java.time.Instant
 
-object DeveloperTestTags {
-    const val REFRESH_BUTTON = "developer:refresh"
-    const val RETRY_BUTTON = "developer:retry"
-
-    fun repositoryRow(fullName: String): String = "developer:repository:$fullName"
-}
-
 @Composable
 fun DeveloperRoute(
-    username: String,
     onBackClick: () -> Unit,
     onRepositoryClick: (owner: String, repositoryName: String) -> Unit,
     modifier: Modifier = Modifier,

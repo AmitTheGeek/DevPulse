@@ -45,17 +45,8 @@ import com.devpulse.core.designsystem.DevPulseTheme
 import com.devpulse.core.model.Repository
 import java.time.Instant
 
-object RepositoryTestTags {
-    const val REFRESH_BUTTON = "repository:refresh"
-    const val RETRY_BUTTON = "repository:retry"
-    const val SAVE_BUTTON = "repository:save"
-    const val OPEN_GITHUB_BUTTON = "repository:open-github"
-}
-
 @Composable
 fun RepositoryRoute(
-    owner: String,
-    repositoryName: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RepositoryViewModel = hiltViewModel(),
@@ -65,11 +56,13 @@ fun RepositoryRoute(
 
     RepositoryScreen(
         uiState = uiState,
-        onRefresh = viewModel::onRefresh,
-        onRetry = viewModel::onRetry,
-        onToggleSaved = viewModel::onToggleSaved,
-        onOpenGitHub = { url -> openGitHubUrl(url, uriHandler) },
-        onBackClick = onBackClick,
+        actions = RepositoryScreenActions(
+            onRefresh = viewModel::onRefresh,
+            onRetry = viewModel::onRetry,
+            onToggleSaved = viewModel::onToggleSaved,
+            onOpenGitHub = { url -> openGitHubUrl(url, uriHandler) },
+            onBackClick = onBackClick,
+        ),
         modifier = modifier,
     )
 }
@@ -77,11 +70,7 @@ fun RepositoryRoute(
 @Composable
 fun RepositoryScreen(
     uiState: RepositoryUiState,
-    onRefresh: () -> Unit,
-    onRetry: () -> Unit,
-    onToggleSaved: () -> Unit,
-    onOpenGitHub: (String) -> Unit,
-    onBackClick: () -> Unit,
+    actions: RepositoryScreenActions,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -90,8 +79,8 @@ fun RepositoryScreen(
         RepositoryTopBar(
             title = "${uiState.owner}/${uiState.repositoryName}",
             isRefreshing = uiState.isRefreshing,
-            onBackClick = onBackClick,
-            onRefresh = onRefresh,
+            onBackClick = actions.onBackClick,
+            onRefresh = actions.onRefresh,
         )
 
         if (uiState.isRefreshing && uiState.hasContent) {
@@ -102,16 +91,16 @@ fun RepositoryScreen(
             uiState.isInitialLoading -> LoadingContent()
             uiState.isInitialError -> InitialErrorContent(
                 error = uiState.initialError,
-                onRetry = onRetry,
+                onRetry = actions.onRetry,
             )
             uiState.hasContent -> RepositoryContent(
                 uiState = uiState,
-                onToggleSaved = onToggleSaved,
-                onOpenGitHub = onOpenGitHub,
+                onToggleSaved = actions.onToggleSaved,
+                onOpenGitHub = actions.onOpenGitHub,
             )
             else -> InitialErrorContent(
                 error = RepositoryUiError.NotFound,
-                onRetry = onRetry,
+                onRetry = actions.onRetry,
             )
         }
     }
@@ -538,11 +527,13 @@ private fun RepositoryScreenPreview() {
                 ),
                 updatedAtLabel = "Updated Sep 8, 2026",
             ),
-            onRefresh = {},
-            onRetry = {},
-            onToggleSaved = {},
-            onOpenGitHub = {},
-            onBackClick = {},
+            actions = RepositoryScreenActions(
+                onRefresh = {},
+                onRetry = {},
+                onToggleSaved = {},
+                onOpenGitHub = {},
+                onBackClick = {},
+            ),
         )
     }
 }

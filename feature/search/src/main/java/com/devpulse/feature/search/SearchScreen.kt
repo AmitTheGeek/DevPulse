@@ -34,15 +34,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.devpulse.core.designsystem.DevPulseTheme
 
-object SearchDestination {
-    const val ROUTE = "search"
-}
-
-object SearchTestTags {
-    const val USERNAME_FIELD = "search:username"
-    const val SEARCH_BUTTON = "search:submit"
-}
-
 @Composable
 fun SearchRoute(
     onDeveloperSearch: (String) -> Unit,

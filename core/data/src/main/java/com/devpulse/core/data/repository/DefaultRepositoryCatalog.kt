@@ -1,5 +1,6 @@
 package com.devpulse.core.data.repository
 
+import android.database.SQLException
 import androidx.room.withTransaction
 import com.devpulse.core.data.cache.CacheFreshnessChecker
 import com.devpulse.core.data.cache.DevPulseClock
@@ -17,6 +18,8 @@ import com.devpulse.core.network.github.service.GitHubApi
 import com.devpulse.core.network.github.service.GitHubApiPaging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 class DefaultRepositoryCatalog @Inject constructor(
@@ -60,8 +63,12 @@ class DefaultRepositoryCatalog @Inject constructor(
 
                 DataResult.Success(Unit)
             }
-        } catch (throwable: Throwable) {
-            DataResult.Failure(throwable.toDevPulseError())
+        } catch (exception: IOException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: HttpException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: SQLException) {
+            DataResult.Failure(exception.toDevPulseError())
         }
     }
 
@@ -89,8 +96,12 @@ class DefaultRepositoryCatalog @Inject constructor(
 
                 DataResult.Success(Unit)
             }
-        } catch (throwable: Throwable) {
-            DataResult.Failure(throwable.toDevPulseError())
+        } catch (exception: IOException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: HttpException) {
+            DataResult.Failure(exception.toDevPulseError())
+        } catch (exception: SQLException) {
+            DataResult.Failure(exception.toDevPulseError())
         }
     }
 
@@ -115,8 +126,8 @@ class DefaultRepositoryCatalog @Inject constructor(
             DataResult.Success(Unit)
         } catch (_: RepositoryNotFoundException) {
             DataResult.Failure(DevPulseError.NotFound)
-        } catch (throwable: Throwable) {
-            DataResult.Failure(throwable.toDevPulseError())
+        } catch (exception: SQLException) {
+            DataResult.Failure(exception.toDevPulseError())
         }
 
     override fun observeSavedRepositories(): Flow<List<Repository>> =

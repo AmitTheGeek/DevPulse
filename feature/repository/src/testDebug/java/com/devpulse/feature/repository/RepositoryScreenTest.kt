@@ -148,11 +148,13 @@ class RepositoryScreenTest {
             DevPulseTheme {
                 RepositoryScreen(
                     uiState = uiState,
-                    onRefresh = onRefresh,
-                    onRetry = onRetry,
-                    onToggleSaved = onToggleSaved,
-                    onOpenGitHub = onOpenGitHub,
-                    onBackClick = onBackClick,
+                    actions = RepositoryScreenActions(
+                        onRefresh = onRefresh,
+                        onRetry = onRetry,
+                        onToggleSaved = onToggleSaved,
+                        onOpenGitHub = onOpenGitHub,
+                        onBackClick = onBackClick,
+                    ),
                 )
             }
         }
