@@ -1,0 +1,26 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - Composable
+
+complexity:
+  LongMethod:
+    threshold: 90
+  LongParameterList:
+    ignoreDefaultParameters: true
+  TooManyFunctions:
+    thresholdInFiles: 25
+    thresholdInInterfaces: 15
+
+style:
+  MagicNumber:
+    ignorePropertyDeclaration: true
+  UnusedPrivateMember:
+    ignoreAnnotated:
+      - Preview
